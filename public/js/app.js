@@ -17,9 +17,10 @@ class Errors{
 	clear(field){
 		if(field) {
 			delete this.errors[field];
-		}else{
-			this.errors = {}
+			return
 		}
+		
+		this.errors = {}
 	}
 
 	has(field){
@@ -45,11 +46,11 @@ class Form{
 	}
 
 	data(){
-		let data = Object.assign({}, this); // {errors, description, name, originalData}
+		let data = {};
 
-		delete data.errors;
-
-		delete data.originalData;
+		for (let field in this.originalData){
+			data[field] = this[field];
+		}
 
 		return data;
 	}
@@ -61,21 +62,28 @@ class Form{
 	}
 
 	submit(requestType, url){
-		axios[requestType](url, this.data())
-				.then(this.onSuccess.bind(this))
-				.catch(this.onFail.bind(this));
+		return new Promise((resolve, reject) =>{
+			axios[requestType](url, this.data())
+				.then(response => {
+					this.onSuccess(response.data.message);
+					resolve(response.data.message);
+				})
+				.catch(error =>{
+					this.onFail(error.response.data.errors)
+					reject(error.response.data.errors)
+				});
+		})
+		
 	}
 
-	onSuccess(response) {
-		console.log(response.data.message);
-
+	onSuccess(message) {
 		this.errors.clear();
 
 		this.reset();
 	}
 
-	onFail(error){
-		this.errors.record(error.response.data.errors)
+	onFail(errors){
+		this.errors.record(errors)
 	}
 }
 
@@ -92,6 +100,8 @@ new Vue({
 	methods: {
 		onSubmit(){
 			this.form.submit('post', '/projects')
+				.then(alert)
+				.catch(console.log)
 		}
 	}
 });
